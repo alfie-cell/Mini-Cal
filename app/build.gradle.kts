@@ -35,6 +35,13 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    testOptions {
+        unitTests.all {
+            // Optional local check against real feeds (RealFeedsTest); unset = test skipped.
+            it.environment("ICS_FEEDS_DIR", System.getenv("ICS_FEEDS_DIR") ?: "")
+            it.testLogging { showStandardStreams = true }
+        }
+    }
     lint {
         abortOnError = true
         checkReleaseBuilds = true

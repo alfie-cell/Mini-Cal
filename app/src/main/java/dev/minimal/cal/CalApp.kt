@@ -22,6 +22,7 @@ class CalApp : Application() {
         // Process (re)start, e.g. after boot on ROMs that delay BOOT_COMPLETED: re-arm everything.
         if (prefs.remindersEnabled) ReminderScheduler.request(this)
         WidgetUpdater.request(this)
+        dev.minimal.cal.sync.SyncJob.schedule(this)
     }
 }
 

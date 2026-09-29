@@ -10,6 +10,31 @@
         android:orientation="vertical"
         android:paddingVertical="8dp">
 
+        <TextView
+            style="@style/SettingsSummary"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="4dp"
+            android:text="@string/links_header"
+            android:textAllCaps="true" />
+
+        <LinearLayout
+            android:id="@+id/link_rows"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <LinearLayout
+            android:id="@+id/row_add_link"
+            style="@style/SettingsRow">
+            <TextView
+                style="@style/SettingsTitle"
+                android:text="@string/links_add" />
+            <TextView
+                style="@style/SettingsSummary"
+                android:text="@string/links_add_summary" />
+        </LinearLayout>
+
         <Switch
             android:id="@+id/switch_reminders"
             style="@style/SettingsSwitch"

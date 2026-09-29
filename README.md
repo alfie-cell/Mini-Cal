@@ -1,8 +1,8 @@
 # Mini Cal
 
-A small, fast calendar companion for Android 13+ (API 33–36). Release APK about 390 KB.
+A small, fast calendar companion for Android 13+ (API 33–36). Release APK about 460 KB.
 
-It shows events from **every calendar on the phone** (Google, Exchange, local, and `.ics` subscriptions synced by apps like ICSx⁵), with reminders and a home-screen widget that works in any launcher, including Xiaomi's.
+It shows events from **every calendar on the phone** (Google, Exchange, local), **subscribes to shared calendar links** itself (`.ics` / `webcal`, e.g. from Proton or Outlook), and has reminders and a home-screen widget that works in any launcher, including Xiaomi's.
 
 - **Agenda:** the next 90 days grouped by day. Repeating events are marked ↻, and duplicates (the same event in two calendars, or imported twice) are merged.
 - **Event view:**
@@ -15,6 +15,14 @@ It shows events from **every calendar on the phone** (Google, Exchange, local, a
   - per-event or per-series overrides from the event view
   - an event's own reminders win over calendar defaults; overrides win over both
   - exact alarms, with Snooze and Dismiss on the notification
+- **Calendar links:** Settings → *+ Add calendar link*, or tap any `webcal://` link. Each link becomes a read-only calendar that syncs hourly (and on demand). Syncs are diff-based: events are matched by UID and occurrence, and only changes are written, so event IDs stay stable. The built-in parser handles:
+  - folded lines and escaped text
+  - quoted parameters
+  - all-day, UTC, floating and timezone times, including **Windows timezone names** from Outlook/Exchange
+  - repeat rules with exclusions and extra dates, moved and cancelled occurrences
+  - attendees and organisers, busy/free status, built-in reminders, and Proton Meet links
+
+  Removing a link (or uninstalling) deletes its events.
 - **Widget ("Upcoming events"):** today's date and your next events. It's resizable, updates within seconds of calendar changes, and switches to "Now" when an event starts.
 
 ## Setup on Xiaomi / MIUI
@@ -33,7 +41,7 @@ To avoid getting reminders twice, turn off the phone calendar app's notification
 
 ```sh
 ./gradlew assembleRelease        # app/build/outputs/apk/release/app-release.apk
-./gradlew testDebugUnitTest      # 44 JVM unit tests
+./gradlew testDebugUnitTest      # 66 JVM unit tests (set ICS_FEEDS_DIR to also check local .ics files)
 ```
 
 Requires JDK 17+ (Android Studio's bundled JDK works). Release builds are signed with the debug key for sideloading.
@@ -47,7 +55,9 @@ app/src/main/java/dev/minimal/cal/
   reminders/  ReminderPlanner (pure rules, unit tested), ReminderScheduler (exact alarm,
               notifications), receivers, ReminderPicker
   widget/     UpcomingWidget + WidgetUpdater (RemoteViews collection, content-change job)
+  ics/        Ics (RFC 5545 reader), EventRows (events -> provider rows + diff hash), WindowsZones
+  sync/       SubscriptionSync (download, diff, batched writes), account/sync services, SyncJob
   agenda/     AgendaFormat (labels, ordering, de-duplication)
 ```
 
-App icon: Material Icons "event" (round), Apache License 2.0.
+App icon: Material Icons "event" (round), Apache License 2.0. Windows→IANA timezone table from Unicode CLDR (Unicode License v3).

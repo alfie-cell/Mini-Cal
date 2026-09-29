@@ -6,7 +6,8 @@ object EventText {
     private val MEETING = Regex(
         """https://(?:teams\.microsoft\.com|teams\.live\.com)/[^\s<>"')\]]+""" +
             """|https://[\w.-]*zoom\.us/(?:j|my|w)/[^\s<>"')\]]+""" +
-            """|https://meet\.google\.com/[a-z0-9-]+""",
+            """|https://meet\.google\.com/[a-z0-9-]+""" +
+            """|https://meet\.proton\.me/[^\s<>"')\]]+""",
         RegexOption.IGNORE_CASE,
     )
     private val HTML_TAG = Regex("<(?:br|p|div|span|a|b|i|u|ul|li|table|tr|td|html|body)\\b", RegexOption.IGNORE_CASE)

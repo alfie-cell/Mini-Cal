@@ -79,7 +79,7 @@ class AgendaActivity : Activity() {
     /** First run asks for calendar + notification access; later taps re-ask or open app settings. */
     private fun requestAccess(force: Boolean) {
         val prefs = calApp.prefs
-        val missing = listOf(Manifest.permission.READ_CALENDAR, Manifest.permission.POST_NOTIFICATIONS)
+        val missing = listOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR, Manifest.permission.POST_NOTIFICATIONS)
             .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isEmpty()) return
         if (!prefs.permissionsAsked) {

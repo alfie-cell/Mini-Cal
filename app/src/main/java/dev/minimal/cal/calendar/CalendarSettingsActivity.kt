@@ -6,6 +6,9 @@ import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.os.PowerManager
+import android.text.InputType
+import android.text.format.DateUtils
+import android.widget.EditText
 import android.widget.Toast
 import android.app.AlertDialog
 import android.content.Intent
@@ -28,6 +31,10 @@ import dev.minimal.cal.reminders.CalendarReminderSettings
 import dev.minimal.cal.reminders.ReminderPicker
 import dev.minimal.cal.reminders.ReminderScheduler
 import dev.minimal.cal.widget.UpcomingWidget
+import dev.minimal.cal.sync.Subscription
+import dev.minimal.cal.sync.SubscriptionSync
+import dev.minimal.cal.sync.Subscriptions
+import dev.minimal.cal.sync.SyncJob
 import java.util.concurrent.Executors
 
 /** Settings → Calendar & reminders: on/off, and per-calendar reminder, all-day time and sound. */
@@ -39,6 +46,8 @@ class CalendarSettingsActivity : Activity() {
     private lateinit var calendarsView: LinearLayout
     private var calendars: List<CalendarInfo> = emptyList()
     private var soundPickerCalendar = -1L
+    private lateinit var linkRows: LinearLayout
+    private var pendingLink: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,14 +56,23 @@ class CalendarSettingsActivity : Activity() {
         calendarsView = findViewById(R.id.calendar_rows)
         enabled.isChecked = prefs.remindersEnabled && hasPermissions()
         enabled.setOnCheckedChangeListener { _, checked -> if (checked) enable() else setEnabled(false) }
+        linkRows = findViewById(R.id.link_rows)
+        findViewById<View>(R.id.row_add_link).setOnClickListener { addLinkDialog(null) }
+        intent?.data?.let { addLinkDialog(it.toString()) } // opened from a webcal:// link
         findViewById<View>(R.id.row_system_calendar_notifications).setOnClickListener { openSystemCalendarNotifications() }
         findViewById<View>(R.id.row_add_widget).setOnClickListener { pinWidget() }
         findViewById<View>(R.id.row_background).setOnClickListener { openAutostart() }
         findViewById<View>(R.id.row_battery).setOnClickListener { requestNoBatteryLimits() }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.data?.let { addLinkDialog(it.toString()) }
+    }
+
     override fun onResume() {
         super.onResume()
+        renderLinks()
         loadCalendars()
     }
 
@@ -70,6 +88,12 @@ class CalendarSettingsActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_WRITE) {
+            val url = pendingLink
+            pendingLink = null
+            if (url != null && canWriteCalendar()) addLink(url)
+            return
+        }
         if (requestCode != REQUEST_PERMISSIONS) return
         val ok = hasPermissions()
         setEnabled(ok)
@@ -195,6 +219,179 @@ class CalendarSettingsActivity : Activity() {
         loadCalendars()
     }
 
+    // ---- Calendar links (subscriptions) ----
+
+    private fun canWriteCalendar() = listOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
+        .all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+
+    private fun renderLinks() {
+        val app = applicationContext
+        EXECUTOR.execute {
+            val subs = Subscriptions(app).all()
+            main.post {
+                if (isDestroyed) return@post
+                linkRows.removeAllViews()
+                for (sub in subs) {
+                    val row = layoutInflater.inflate(R.layout.item_calendar_setting, linkRows, false)
+                    row.findViewById<View>(R.id.cal_dot).backgroundTintList = android.content.res.ColorStateList.valueOf(sub.color)
+                    row.findViewById<TextView>(R.id.cal_name).text = sub.displayName
+                    row.findViewById<TextView>(R.id.cal_summary).text = linkStatus(sub)
+                    row.setOnClickListener { linkOptions(sub) }
+                    linkRows.addView(row)
+                }
+            }
+        }
+    }
+
+    private fun linkStatus(sub: Subscription): String = when {
+        sub.lastError != null -> getString(R.string.links_status_error, sub.lastError)
+        sub.lastSync == 0L -> getString(R.string.links_status_never)
+        else -> getString(
+            R.string.links_status_ok,
+            DateUtils.getRelativeTimeSpanString(sub.lastSync, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS),
+            sub.eventCount,
+        )
+    }
+
+    private fun addLinkDialog(prefill: String?) {
+        val pad = (resources.displayMetrics.density * 20).toInt()
+        val input = EditText(this).apply {
+            hint = getString(R.string.links_add_hint)
+            inputType = InputType.TYPE_TEXT_VARIATION_URI
+            isSingleLine = true
+            prefill?.let { setText(it) }
+        }
+        val box = LinearLayout(this).apply { setPadding(pad, pad / 2, pad, 0); addView(input) }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.links_add_title)
+            .setView(box)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val url = SubscriptionSync.normalise(input.text.toString())
+                if (!url.startsWith("https://", true) && !url.startsWith("http://", true)) {
+                    Toast.makeText(this, R.string.links_invalid, Toast.LENGTH_SHORT).show()
+                } else if (!canWriteCalendar()) {
+                    pendingLink = url
+                    requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR), REQUEST_WRITE)
+                } else {
+                    addLink(url)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun addLink(url: String) {
+        val app = applicationContext
+        val store = Subscriptions(app)
+        // Already subscribed: just refresh that one.
+        store.all().firstOrNull { SubscriptionSync.normalise(it.url).equals(url, ignoreCase = true) }?.let { existing ->
+            Toast.makeText(this, R.string.links_already, Toast.LENGTH_SHORT).show()
+            syncNow(existing)
+            return
+        }
+        val used = store.all().map { it.color }.toSet()
+        val sub = Subscription(url = url, color = PALETTE.map { it.second }.firstOrNull { it !in used } ?: PALETTE[0].second)
+        store.save(sub)
+        Toast.makeText(this, R.string.links_adding, Toast.LENGTH_SHORT).show()
+        renderLinks()
+        EXECUTOR.execute {
+            val result = SubscriptionSync.sync(app, sub.id, force = true)
+            if (!result.ok) SubscriptionSync.remove(app, sub.id)
+            SyncJob.schedule(app)
+            main.post {
+                if (isDestroyed) return@post
+                if (result.ok) {
+                    val name = Subscriptions(app).find(sub.id)?.displayName ?: sub.displayName
+                    Toast.makeText(this, getString(R.string.links_added, name, result.events), Toast.LENGTH_LONG).show()
+                } else {
+                    AlertDialog.Builder(this).setTitle(R.string.links_failed).setMessage(result.message)
+                        .setPositiveButton(android.R.string.ok, null).show()
+                }
+                renderLinks()
+                loadCalendars()
+            }
+        }
+    }
+
+    private fun linkOptions(sub: Subscription) {
+        val items = arrayOf(
+            getString(R.string.links_sync_now), getString(R.string.links_rename),
+            getString(R.string.links_colour), getString(R.string.links_remove),
+        )
+        AlertDialog.Builder(this)
+            .setTitle(sub.displayName)
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> syncNow(sub)
+                    1 -> rename(sub)
+                    2 -> chooseColour(sub)
+                    3 -> confirmRemove(sub)
+                }
+            }
+            .show()
+    }
+
+    private fun syncNow(sub: Subscription) {
+        val app = applicationContext
+        Toast.makeText(this, R.string.links_syncing, Toast.LENGTH_SHORT).show()
+        EXECUTOR.execute {
+            val result = SubscriptionSync.sync(app, sub.id, force = true)
+            main.post {
+                if (isDestroyed) return@post
+                Toast.makeText(this, if (result.ok) getString(R.string.links_synced, result.events) else (result.message ?: getString(R.string.links_failed)), Toast.LENGTH_LONG).show()
+                renderLinks()
+            }
+        }
+    }
+
+    private fun rename(sub: Subscription) {
+        val pad = (resources.displayMetrics.density * 20).toInt()
+        val input = EditText(this).apply { setText(sub.displayName); isSingleLine = true; setSelectAllOnFocus(true) }
+        val box = LinearLayout(this).apply { setPadding(pad, pad / 2, pad, 0); addView(input) }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.links_rename)
+            .setView(box)
+            .setPositiveButton(R.string.save) { _, _ -> updateLink(sub.id) { it.copy(customName = input.text.toString().trim().ifEmpty { null }) } }
+            .setNeutralButton(R.string.links_name_default) { _, _ -> updateLink(sub.id) { it.copy(customName = null) } }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun chooseColour(sub: Subscription) {
+        val names = PALETTE.map { it.first }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.links_colour)
+            .setSingleChoiceItems(names, PALETTE.indexOfFirst { it.second == sub.color }) { d, which ->
+                updateLink(sub.id) { it.copy(color = PALETTE[which].second) }
+                d.dismiss()
+            }
+            .show()
+    }
+
+    private fun confirmRemove(sub: Subscription) {
+        AlertDialog.Builder(this)
+            .setMessage(getString(R.string.links_remove_confirm, sub.displayName))
+            .setPositiveButton(R.string.links_remove) { _, _ ->
+                val app = applicationContext
+                EXECUTOR.execute {
+                    SubscriptionSync.remove(app, sub.id)
+                    SyncJob.schedule(app)
+                    main.post { if (!isDestroyed) { renderLinks(); loadCalendars() } }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun updateLink(id: String, change: (Subscription) -> Subscription) {
+        val app = applicationContext
+        EXECUTOR.execute {
+            val updated = Subscriptions(app).update(id, change)
+            updated?.calendarId?.let { SubscriptionSync.updateCalendarMeta(app, it, updated) }
+            main.post { if (!isDestroyed) { renderLinks(); loadCalendars() } }
+        }
+    }
+
     /** Asks the launcher to place the widget (Pixel and most launchers support this). */
     private fun pinWidget() {
         val manager = AppWidgetManager.getInstance(this)
@@ -260,6 +457,13 @@ class CalendarSettingsActivity : Activity() {
     private companion object {
         const val REQUEST_PERMISSIONS = 10
         const val REQUEST_SOUND = 11
+        const val REQUEST_WRITE = 12
+        val PALETTE = listOf(
+            "Blue" to 0xFF4285F4.toInt(), "Green" to 0xFF33B679.toInt(), "Tomato" to 0xFFD50000.toInt(),
+            "Tangerine" to 0xFFF4511E.toInt(), "Banana" to 0xFFF6BF26.toInt(), "Grape" to 0xFF8E24AA.toInt(),
+            "Teal" to 0xFF009688.toInt(), "Flamingo" to 0xFFE67C73.toInt(), "Lavender" to 0xFF7986CB.toInt(),
+            "Graphite" to 0xFF616161.toInt(),
+        )
         val EXECUTOR = Executors.newSingleThreadExecutor { r -> Thread(r, "calendar-settings") }
     }
 }
