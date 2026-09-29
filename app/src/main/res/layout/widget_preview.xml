@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static preview shown in the launcher's widget picker. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="HardcodedText"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="14dp">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:paddingBottom="8dp" android:text="Monday 28 September" android:textColor="@color/text_primary" android:textSize="16sp" />
+    <TextView android:layout_width="wrap_content" android:layout_height="32dp" android:gravity="center_vertical"
+        android:text="●  Now   Standup" android:textColor="@color/text_primary" android:textSize="14sp" />
+    <TextView android:layout_width="wrap_content" android:layout_height="32dp" android:gravity="center_vertical"
+        android:text="●  14:00   Dentist" android:textColor="@color/text_primary" android:textSize="14sp" />
+    <TextView android:layout_width="wrap_content" android:layout_height="32dp" android:gravity="center_vertical"
+        android:text="●  Tomorrow   Team lunch" android:textColor="@color/text_primary" android:textSize="14sp" />
+</LinearLayout>

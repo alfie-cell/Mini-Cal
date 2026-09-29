@@ -1,0 +1,11 @@
+<resources>
+    <!-- Shared look with the Minimal launcher: near-black, white text, translucent-white surfaces. -->
+    <color name="page_bg">#FF0E0E11</color>
+    <color name="icon_bg">#FF16161A</color>
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#D9FFFFFF</color>
+    <color name="search_bg">#29FFFFFF</color>
+    <color name="row_activated">#33FFFFFF</color>
+    <color name="accent">#FF8AB4F8</color>
+    <color name="widget_bg">#D90E0E11</color>
+</resources>

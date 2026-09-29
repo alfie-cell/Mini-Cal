@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/SettingsRow"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+    <View
+        android:id="@+id/cal_dot"
+        android:layout_width="10dp"
+        android:layout_height="10dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/agenda_dot" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/cal_name"
+            style="@style/SettingsTitle" />
+        <TextView
+            android:id="@+id/cal_summary"
+            style="@style/SettingsSummary" />
+    </LinearLayout>
+</LinearLayout>
