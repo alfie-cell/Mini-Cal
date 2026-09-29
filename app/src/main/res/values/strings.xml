@@ -8,6 +8,8 @@
     <string name="pref_add_widget">Add widget to home screen</string>
     <string name="pref_add_widget_summary">Or long-press your home screen → Widgets → Mini Cal</string>
     <string name="pref_widget_unsupported">Your launcher can\'t add widgets from apps. Long-press the home screen → Widgets → Mini Cal.</string>
+    <string name="widget_xiaomi_permission">If the widget didn’t appear: Xiaomi phones need the “Home screen shortcuts” permission for Mini Cal. Allow it, then tap Add widget again. You can also long-press the home screen → Widgets → Mini Cal.</string>
+    <string name="widget_open_permissions">Open permissions</string>
     <string name="pref_background">Allow running in background</string>
     <string name="pref_background_summary">On Xiaomi phones turn on Autostart, so reminders and the widget stay up to date</string>
     <string name="pref_battery">Battery: no restrictions</string>

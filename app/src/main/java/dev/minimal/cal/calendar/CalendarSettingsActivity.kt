@@ -12,6 +12,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -199,7 +200,25 @@ class CalendarSettingsActivity : Activity() {
         val manager = AppWidgetManager.getInstance(this)
         val provider = ComponentName(this, UpcomingWidget::class.java)
         val ok = manager.isRequestPinAppWidgetSupported && runCatching { manager.requestPinAppWidget(provider, null, null) }.getOrDefault(false)
-        if (!ok) Toast.makeText(this, R.string.pref_widget_unsupported, Toast.LENGTH_LONG).show()
+        // MIUI accepts the request but silently drops it unless the app has Xiaomi's own
+        // "Home screen shortcuts" permission (off by default), so explain and link to it.
+        if (Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true)) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.pref_add_widget)
+                .setMessage(R.string.widget_xiaomi_permission)
+                .setPositiveButton(R.string.widget_open_permissions) { _, _ -> openXiaomiPermissions() }
+                .setNegativeButton(android.R.string.ok, null)
+                .show()
+        } else if (!ok) {
+            Toast.makeText(this, R.string.pref_widget_unsupported, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Xiaomi's per-app permission editor (has "Home screen shortcuts"), else app settings. */
+    private fun openXiaomiPermissions() {
+        val miui = Intent("miui.intent.action.APP_PERM_EDITOR").putExtra("extra_pkgname", packageName)
+        val started = runCatching { startActivity(miui); true }.getOrDefault(false)
+        if (!started) Actions.safeStart(this, Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(Uri.fromParts("package", packageName, null)))
     }
 
     /** Xiaomi's Autostart screen when present, else this app's system settings page. */

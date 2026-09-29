@@ -23,7 +23,9 @@ MIUI stops background apps aggressively. In Mini Cal → Settings:
 - **Allow running in background:** turn on Autostart.
 - **Battery: no restrictions.**
 
-Without these, reminders and widget updates can be late. To add the widget, long-press the home screen → Widgets → Mini Cal, or use **Add widget to home screen** in Settings.
+Without these, reminders and widget updates can be late.
+
+To add the widget, long-press the home screen → Widgets → Mini Cal. You can also use **Add widget to home screen** in Settings, but on Xiaomi that needs the app's **Home screen shortcuts** permission first (App info → Other permissions). MIUI silently ignores the request without it.
 
 To avoid getting reminders twice, turn off the phone calendar app's notifications (a shortcut is in Settings).
 
